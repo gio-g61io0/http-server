@@ -26,6 +26,7 @@ type Request struct {
 type Body struct {
 	content       []byte
 	contentLength int
+	readNBytes    int
 }
 type RequestLine struct {
 	method       string
@@ -40,13 +41,24 @@ func NewBody() Body {
 	return Body{
 		content:       []byte{},
 		contentLength: 0,
+		readNBytes:    0,
 	}
 
 }
 
-func (body *Body) parse(buffer []byte, contentLength int) (int, error) {
+func (body *Body) parse(buffer []byte) (int, error) {
+
+	//Only consume bytes that are remaining
+	if body.readNBytes+len(buffer) > body.contentLength {
+		remaining := body.contentLength - body.readNBytes
+		if remaining <= 0 {
+			return 0, nil //Done. Nothing to consume
+		}
+		buffer = buffer[:remaining]
+	}
+
 	body.content = append(body.content, buffer...)
-	body.contentLength += contentLength
+	body.contentLength += len(buffer)
 
 	return len(buffer), nil
 
@@ -105,24 +117,27 @@ func (r *Request) parse(buffer []byte) (int, error) {
 				r.state = ParseDone
 				return bytes_read, nil
 			}
-			contentLength, err := strconv.Atoi(r.headers.Get("Content-Length"))
-			if err != nil {
-				return bytes_read, fmt.Errorf("Invalid Content Length field ")
-			}
 
-			//mutate request's body field content length
-			r.body.contentLength = contentLength
-
-			n_read, err := r.body.parse(buffer[bytes_read:], contentLength)
+			n_read, err := r.body.parse(buffer[bytes_read:])
 
 			if err != nil {
 				return bytes_read, err
 			}
+			if n_read == 0 {
+				r.state = ParseDone
+			}
+			bytes_read += n_read
 
+		case ParseDone:
+			return bytes_read, nil
 		}
 
 	}
 
+}
+
+func (r *Request) IsDone() bool {
+	return r.state == ParseDone
 }
 
 func (r *Request) parseRequestLine(buffer []byte) (int, error) {
