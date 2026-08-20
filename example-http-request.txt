@@ -1,0 +1,6 @@
+GET /api/v1/users HTTP/1.1
+Host: example.com
+Accept: application/json
+Authorization: Bearer <token>
+User-Agent: CustomClient/1.0
+Connection: keep-alive

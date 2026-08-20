@@ -2,6 +2,7 @@ package request
 
 import (
 	"fmt"
+	"io"
 	"personal-http-server/parser/constants"
 	"strconv"
 	"strings"
@@ -18,10 +19,11 @@ const (
 )
 
 type Request struct {
-	requestLine RequestLine
-	headers     Header
-	body        Body
+	requestLine *RequestLine
+	headers     *Header
+	body        *Body
 	state       RequestParserState
+	reader      io.Reader
 }
 type Body struct {
 	content       []byte
@@ -37,8 +39,8 @@ type Header struct {
 	fields map[string]string
 }
 
-func NewBody() Body {
-	return Body{
+func NewBody() *Body {
+	return &Body{
 		content:       []byte{},
 		contentLength: 0,
 		readNBytes:    0,
@@ -58,19 +60,17 @@ func (body *Body) parse(buffer []byte) (int, error) {
 	}
 
 	body.content = append(body.content, buffer...)
-	body.contentLength += len(buffer)
+	body.readNBytes += len(buffer)
 
 	return len(buffer), nil
 
 }
-
 func (r *Request) parse(buffer []byte) (int, error) {
-
 	bytes_read := 0
 	for {
 		switch r.state {
 		case ParseInit:
-			r.state = ParseHeaders
+			r.state = ParseRequestLine
 		case ParseRequestLine:
 			n_read, err := r.parseRequestLine(buffer[bytes_read:])
 			if err != nil {
@@ -79,6 +79,7 @@ func (r *Request) parse(buffer []byte) (int, error) {
 			if n_read <= 0 {
 				return bytes_read, nil
 			}
+			fmt.Printf("Read bytes from request line %d\n", n_read)
 			bytes_read += n_read
 			r.state = ParseHeaders
 
@@ -133,6 +134,61 @@ func (r *Request) parse(buffer []byte) (int, error) {
 		}
 
 	}
+}
+
+func NewRequest(reader io.Reader) *Request {
+	return &Request{
+		requestLine: nil,
+		headers:     &Header{fields: make(map[string]string)},
+		body:        NewBody(),
+		state:       ParseInit,
+		reader:      reader,
+	}
+}
+
+func (r *Request) ReadRequest(buffer []byte) (int, error) {
+
+	if r.reader == nil {
+		return 0, fmt.Errorf("No socket reader set")
+	}
+
+	bytes_read := 0
+	bufLength := 0
+	for {
+
+		if r.IsDone() {
+			return bytes_read, nil
+		}
+
+		n, err := r.reader.Read(buffer[bytes_read:])
+
+		bufLength += n
+
+		fmt.Printf("Buffered data %s \n", string(buffer))
+
+		if err == io.EOF {
+			return 0, fmt.Errorf("End of File!")
+		}
+
+		if err != nil {
+			return 0, err
+		}
+
+		if n <= 0 {
+			return bytes_read, err
+		}
+
+		n_parsed, err := r.parse(buffer[:bufLength])
+
+		if err != nil {
+			return 0, err
+		}
+
+		bufLength -= n_parsed
+		copy(buffer, buffer[:bufLength])
+
+		bytes_read += n_parsed
+	}
 
 }
 
@@ -141,6 +197,7 @@ func (r *Request) IsDone() bool {
 }
 
 func (r *Request) parseRequestLine(buffer []byte) (int, error) {
+
 	completeRequestLine := strings.Split(string(buffer), "\r\n")
 	if len(completeRequestLine) < 2 {
 		return 0, nil
@@ -151,13 +208,13 @@ func (r *Request) parseRequestLine(buffer []byte) (int, error) {
 		return 0, fmt.Errorf("Invalid request line")
 	}
 
-	r.requestLine = RequestLine{
+	r.requestLine = &RequestLine{
 		method:       parts[0],
 		methodTarget: parts[1],
 		httpVersion:  parts[2],
 	}
 
-	return len(buffer) + len(constants.SEPARATOR), nil
+	return len(buffer), nil
 }
 
 func (h *Header) ContentLength() (int, error) {
@@ -172,6 +229,7 @@ func (h *Header) ContentLength() (int, error) {
 func (h *Header) parseHeader(buf []byte) (string, string, error) {
 	split := strings.Split(string(buf), constants.KEY_VALUE_SPLIT)
 
+	fmt.Printf("Data here %s\n", string(buf))
 	if len(split) < 2 {
 		return "", "", fmt.Errorf("Invalid header line")
 	}
