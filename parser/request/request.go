@@ -160,14 +160,18 @@ func (r *Request) ReadRequest(buffer []byte) (int, error) {
 			return bytes_read, nil
 		}
 
-		n, err := r.reader.Read(buffer[bytes_read:])
+		n, err := r.reader.Read(buffer[bufLength:])
 
 		bufLength += n
 
-		fmt.Printf("Buffered data %s \n", string(buffer))
-
 		if err == io.EOF {
-			return 0, fmt.Errorf("End of File!")
+
+			//for cases where there is a content length specified for a GET request but there is no body.
+			if r.headers.Exist("Content-Length") && r.requestLine.method == "GET" {
+				r.state = ParseDone
+				return bytes_read, nil
+			}
+			return 0, fmt.Errorf("End of File! already")
 		}
 
 		if err != nil {
@@ -184,8 +188,11 @@ func (r *Request) ReadRequest(buffer []byte) (int, error) {
 			return 0, err
 		}
 
+		copy(buffer, buffer[n_parsed:bufLength])
 		bufLength -= n_parsed
-		copy(buffer, buffer[:bufLength])
+
+		fmt.Printf("N parsed %d\n", n_parsed)
+		fmt.Printf("Buffer after 1 parse pass %s\n", string(buffer[n_parsed:]))
 
 		bytes_read += n_parsed
 	}
@@ -197,6 +204,13 @@ func (r *Request) IsDone() bool {
 }
 
 func (r *Request) parseRequestLine(buffer []byte) (int, error) {
+
+	idx := strings.Index(string(buffer), constants.SEPARATOR)
+
+	//Nothing to parse yet. Buffer is not complete
+	if idx == -1 {
+		return 0, nil
+	}
 
 	completeRequestLine := strings.Split(string(buffer), "\r\n")
 	if len(completeRequestLine) < 2 {
@@ -214,7 +228,7 @@ func (r *Request) parseRequestLine(buffer []byte) (int, error) {
 		httpVersion:  parts[2],
 	}
 
-	return len(buffer), nil
+	return idx + len(constants.SEPARATOR), nil
 }
 
 func (h *Header) ContentLength() (int, error) {

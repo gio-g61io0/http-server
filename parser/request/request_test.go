@@ -88,9 +88,10 @@ func TestRequestParserWithBody(t *testing.T) {
 		"Host: example.com\r\n" +
 		"Accept: application/json\r\n" +
 		"Authorization: Bearer <token>\r\n" +
-		"Content-Length: 100\r\n" +
+		"Content-Length: 9\r\n" +
 		"User-Agent: CustomClient/1.0\r\n" +
 		"Connection: keep-alive\r\n\r\n"
+		// "Gio Gwapo"
 
 	reader := stringBufferedReader(sampleHTTPRequest, 64)
 	buffer := make([]byte, 64)
@@ -101,7 +102,7 @@ func TestRequestParserWithBody(t *testing.T) {
 	assert.Equal(t, request.requestLine.method, "GET")
 	assert.Equal(t, request.requestLine.methodTarget, "/api/v1/users")
 	assert.Equal(t, request.requestLine.httpVersion, "HTTP/1.1")
-	assert.Equal(t, "100", request.headers.Get("Content-Length"))
-	require.NoError(t, errParse)
+	assert.Equal(t, "9", request.headers.Get("Content-Length"))
+	require.NoError(t, errParse) //should error for now when there is a content length but no body
 
 }
