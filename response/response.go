@@ -60,6 +60,26 @@ func (res *Response) HTTPVersion(version string) *Response {
 	return res
 }
 
+func (res *Response) HeaderSet(key string, value string) {
+	res.headers[strings.ToLower(key)] = []byte(value)
+}
+func (res *Response) ForEach(cb func(k, v string)) {
+	for key, value := range res.headers {
+		cb(key, string(value))
+	}
+
+}
+
+func (res *Response) WriteHeader() string {
+	headerString := ""
+	res.ForEach(func(key, value string) {
+		headerString += fmt.Sprintf("%s:%s\r\n", key, value)
+	})
+
+	return fmt.Sprintf("%s\r\n", headerString)
+
+}
+
 func Method(method string) RequestLineOption {
 	return func(reqStat *ResponseStatusLine) error {
 		methodUpper := strings.ToUpper(method)
