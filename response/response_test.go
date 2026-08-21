@@ -7,7 +7,7 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
-func TestResponseOjectCreation(t *testing.T) {
+func TestResponseOjectCreationOk(t *testing.T) {
 	writer, err := FileWriter("example-writer.txt")
 
 	if err != nil {
@@ -19,4 +19,30 @@ func TestResponseOjectCreation(t *testing.T) {
 	require.NoError(t, err)
 	assert.Equal(t, []byte("HTTP/1.1 200 OK\r\n"), response.statusLine)
 
+}
+func TesTestResponseOjectCreationBad(t *testing.T) {
+
+	writer, err := FileWriter("example-writer.txt")
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	response, err := NewResponse(writer, HttpVersion(), BuildStatusLine(StatusCode(BAD_REQUEST)))
+
+	require.NoError(t, err)
+	assert.Equal(t, []byte("HTTP/1.1 400 Bad Request\r\n"), response.statusLine)
+}
+func TesTestResponseOjectCreationServerErr(t *testing.T) {
+
+	writer, err := FileWriter("example-writer.txt")
+
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	response, err := NewResponse(writer, HttpVersion(), BuildStatusLine(StatusCode(INTERNAL_ERROR)))
+
+	require.NoError(t, err)
+	assert.Equal(t, []byte("HTTP/1.1 500 Internal Server Error\r\n"), response.statusLine)
 }
