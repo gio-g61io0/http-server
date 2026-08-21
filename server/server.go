@@ -1,7 +1,6 @@
 package server
 
 import (
-	"net"
 	"personal-http-server/parser/request"
 )
 
