@@ -7,13 +7,26 @@ import (
 	"strings"
 )
 
+type SupportedMethod string
+
+const (
+	GET  SupportedMethod = "GET"
+	POST SupportedMethod = "POST"
+)
+
 type Response struct {
 	statusLine []byte
 	headers    map[string][]byte
 	body       []byte
 	writer     io.Writer
 }
+type ResponseStatusLine struct {
+	version string
+	method  SupportedMethod
+	reason  string
+}
 
+type RequestLineOption func(*ResponseStatusLine) error
 type Option func(*Response) error
 
 func Method(method string) Option {
@@ -51,6 +64,26 @@ func (res *Response) HTTPVersion(version string) *Response {
 	return res
 }
 
+func BuildStatusLine(reqLineOpts ...RequestLineOption) Option {
+	return func(r *Response) error {
+		statusLine := ResponseStatusLine{
+			version: "",
+			method:  "GET",
+			reason:  "",
+		}
+
+		for _, reqOpt := range reqLineOpts {
+			if err := reqOpt(&statusLine); err != nil {
+				return fmt.Errorf("applying option: %w", err)
+			}
+
+		}
+		statusLineString := statusLine.BuildString()
+		r.statusLine = []byte(statusLineString)
+		return nil
+	}
+}
+
 func NewResponse(writer io.Writer, opts ...Option) (Response, error) {
 
 	res := Response{
@@ -67,5 +100,9 @@ func NewResponse(writer io.Writer, opts ...Option) (Response, error) {
 
 	}
 	return res, nil
+}
+
+func (statusLine *ResponseStatusLine) BuildString() string {
+	return fmt.Sprintf("%s %s %s\r\n")
 
 }
