@@ -1,10 +1,12 @@
 package response
 
 import (
-	"testing"
-
+	// "bufio"
+	"bytes"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"strconv"
+	"testing"
 )
 
 func TestResponseOjectCreationOk(t *testing.T) {
@@ -61,4 +63,21 @@ func TestHeader(t *testing.T) {
 	headerString := response.WriteHeader()
 
 	assert.Equal(t, "content-type:application/json\r\n\r\n", headerString)
+}
+func TestBody(t *testing.T) {
+
+	writer, err := FileWriter("example-writer.txt")
+	data := bytes.NewReader([]byte("Hello world. Gwapo si Gio"))
+	// bufferedReader := bufio.NewReader(data)
+
+	if err != nil {
+		t.Fatal(err)
+	}
+	response, err := NewResponse(writer, HttpVersion(), BuildStatusLine(StatusCode(INTERNAL_ERROR)), BuildBody(data))
+
+	response.HeaderSet("Content-length", strconv.Itoa(len("Hello world. Gwapo si Gio")))
+
+	require.NoError(t, err)
+	assert.Equal(t, "Hello world. Gwapo si Gio", string(response.body))
+
 }

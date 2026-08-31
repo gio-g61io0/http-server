@@ -63,6 +63,7 @@ func (res *Response) HTTPVersion(version string) *Response {
 func (res *Response) HeaderSet(key string, value string) {
 	res.headers[strings.ToLower(key)] = []byte(value)
 }
+
 func (res *Response) ForEach(cb func(k, v string)) {
 	for key, value := range res.headers {
 		cb(key, string(value))
@@ -137,6 +138,25 @@ func BuildStatusLine(reqLineOpts ...RequestLineOption) Option {
 		statusLineString := statusLine.BuildString()
 		r.statusLine = []byte(statusLineString)
 		return nil
+	}
+}
+
+// Body should be buffer reader of the body
+func BuildBody(bufferedBody io.Reader) Option {
+	buf := make([]byte, 2)
+
+	return func(r *Response) error {
+		for {
+			n, err := bufferedBody.Read(buf)
+			if n <= 0 || err == io.EOF {
+				return nil
+			}
+			if err != nil {
+				return err
+			}
+
+			r.body = append(r.body, buf[:n]...)
+		}
 	}
 }
 
