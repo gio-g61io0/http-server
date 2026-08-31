@@ -7,7 +7,6 @@ import (
 	"net"
 	"personal-http-server/client"
 	"sync"
-	"time"
 )
 
 type Server struct {
@@ -56,7 +55,6 @@ func (s *Server) AcceptListener() {
 	ctx, cancel := context.WithCancel(s.ctx)
 
 	defer cancel()
-	time.Sleep(time.Second * 3)
 
 	l, err := s.ListenerConfig.Listen(ctx, s.TCPAddr.Network(), s.TCPAddr.String())
 	if err != nil {
@@ -72,6 +70,7 @@ func (s *Server) AcceptListener() {
 		//We can process the connection here as a client struct
 		clientCreated := client.NewClient(conn)
 		clientCreated.ReadRequest()
+		clientCreated.WriteResponse()
 	}, func(err error) bool {
 		log.Println("Error handling a connection ")
 		s.SrvCancel() //cancels any routine that uses this context

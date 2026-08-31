@@ -24,7 +24,7 @@ const (
 type Response struct {
 	statusLine []byte
 	headers    map[string][]byte
-	body       []byte
+	Body       []byte
 	writer     io.Writer
 }
 type ResponseStatusLine struct {
@@ -46,7 +46,7 @@ func HttpVersion() Option {
 
 func Body(body []byte) Option {
 	return func(res *Response) error {
-		res.body = body
+		res.Body = body
 		return nil
 	}
 
@@ -155,7 +155,7 @@ func BuildBody(bufferedBody io.Reader) Option {
 				return err
 			}
 
-			r.body = append(r.body, buf[:n]...)
+			r.Body = append(r.Body, buf[:n]...)
 		}
 	}
 }
@@ -165,7 +165,7 @@ func NewResponse(writer io.Writer, opts ...Option) (Response, error) {
 	res := Response{
 		statusLine: make([]byte, 0),
 		headers:    make(map[string][]byte),
-		body:       make([]byte, 0),
+		Body:       make([]byte, 0),
 		writer:     writer,
 	}
 
@@ -179,4 +179,16 @@ func NewResponse(writer io.Writer, opts ...Option) (Response, error) {
 
 func (statusLine *ResponseStatusLine) BuildString() string {
 	return fmt.Sprintf("%s %d %s\r\n", statusLine.version, statusLine.statusCode, statusLine.reason)
+}
+func (res *Response) HeaderString() string {
+	header := ""
+	res.ForEach(func(k, v string) {
+		header += fmt.Sprintf("%s:%s\r\n", k, v)
+	})
+	header += "\r\n"
+	return header
+}
+
+func (res *Response) ResponseLine() []byte {
+	return res.statusLine
 }

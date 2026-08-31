@@ -3,6 +3,7 @@ package request
 import (
 	"fmt"
 	"io"
+	"log"
 	"personal-http-server/parser/constants"
 	"strconv"
 	"strings"
@@ -144,6 +145,12 @@ func NewRequest(reader io.Reader) *Request {
 		state:       ParseInit,
 		reader:      reader,
 	}
+}
+
+// printing only
+func (r *Request) InspectRequest() {
+	log.Printf("Request line %v", r.requestLine)
+	log.Printf("Request line %v", r.headers)
 }
 
 func (r *Request) ReadRequest(buffer []byte) (int, error) {
